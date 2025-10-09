@@ -2,30 +2,22 @@ from pathlib import Path
 from PIL import Image
 import shutil
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Tuple
 
-IMAGE_EXTS: Tuple[str, ...] = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp')
+IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp')
 
-def find_image_files(root: Path) -> List[Path]:
-    return [p for p in root.rglob('*') if p.suffix.lower() in IMAGE_EXTS]
+def find_image_files(root: Path): return [p for p in root.rglob('*') if p.suffix.lower() in IMAGE_EXTS]
 
-def check_image(path: Path) -> Tuple[bool, str]:
+def check_image(path: Path):
     try:
-        if path.stat().st_size == 0:
-            return False, "zero-size file"
-        with Image.open(path) as img:
-            img.verify()
+        if path.stat().st_size == 0: return False, "zero-size file"
+        with Image.open(path) as img: img.verify()
         return True, "Unknown error"
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+    except Exception as e: return False, f"{type(e).__name__}: {e}"
 
-def scan_folder_parallel(root_folder: str, quarantine_folder: str, max_workers: int = 4) -> List[Tuple[Path, str]]:
-    root = Path(root_folder)
-    files: List[Path] = find_image_files(root)
-    bad: List[Tuple[Path, str]] = []
+def scan_folder_parallel(root_folder: str, quarantine_folder: str, max_workers: int = 4):
+    files, bad = find_image_files(Path(root_folder)), []
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        results = ex.map(check_image, files)
-        for p, (ok, err) in zip(files, results):
+        for p, (ok, err) in zip(files, ex.map(check_image, files)):
             if not ok:
                 bad.append((p, err))
                 print(f"[BAD] {p} -> {err}")
